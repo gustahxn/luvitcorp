@@ -41,10 +41,21 @@ const updateProduct = async (req, res) => {
 
 const deleteProduct = async (req, res) => {
   const { id } = req.params;
-  // Soft delete para manter histórico em pedidos
-  const { data, error } = await supabaseAdmin.from('products').update({ active: false }).eq('id', id).select();
-  if (error) return res.status(400).json({ error: error.message });
-  res.json({ message: 'Product disabled', data });
+  
+  // Tenta deletar fisicamente primeiro
+  const deleteRes = await supabaseAdmin.from('products').delete().eq('id', id);
+  
+  if (deleteRes.error) {
+    // Se o erro for foreign key violation (23503), inativa ao invés de deletar
+    if (deleteRes.error.code === '23503') {
+      const { data, error } = await supabaseAdmin.from('products').update({ active: false }).eq('id', id).select();
+      if (error) return res.status(400).json({ error: error.message });
+      return res.json({ message: 'Produto inativado pois não pode ser excluído devido a pedidos existentes.', data });
+    }
+    return res.status(400).json({ error: deleteRes.error.message });
+  }
+
+  res.json({ message: 'Produto excluído com sucesso.' });
 };
 
 module.exports = {

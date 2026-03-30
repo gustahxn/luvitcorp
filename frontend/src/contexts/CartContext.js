@@ -1,10 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// Zustand simplifica bastante o estado global e tem persistência no localStorage nativa
 export const useCartStore = create(
   persist(
-    (set, get) => ({
+    (set) => ({
       items: [],
       
       addItem: (product) => {
@@ -37,14 +36,6 @@ export const useCartStore = create(
       },
       
       clearCart: () => set({ items: [] }),
-      
-      get cartTotal() {
-        return get().items.reduce((total, item) => total + (Number(item.price) * item.quantity), 0);
-      },
-      
-      get itemsCount() {
-        return get().items.reduce((acc, item) => acc + item.quantity, 0);
-      }
     }),
     {
       name: 'luvitcorp-cart-storage',

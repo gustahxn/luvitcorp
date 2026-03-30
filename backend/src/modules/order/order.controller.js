@@ -3,23 +3,35 @@ const supabaseAdmin = require('../../config/supabase');
 // Criar Pedido (Autenticado)
 const createOrder = async (req, res) => {
   try {
-    const { items, total } = req.body;
-    const userId = req.user.id; // From middleware auth.js
+    const { items, total, customer_name, customer_phone, customer_address, customer_city, customer_note } = req.body;
+    const userId = req.user.id;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Carrinho vazio' });
     }
+    if (!customer_name || !customer_phone || !customer_address || !customer_city) {
+      return res.status(400).json({ error: 'Dados de entrega incompletos' });
+    }
 
-    // 1. Criar ordem pai
+    // 1. Criar ordem pai com dados do cliente
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
-      .insert([{ user_id: userId, total, status: 'PENDING' }])
+      .insert([{ 
+        user_id: userId, 
+        total, 
+        status: 'PENDING',
+        customer_name,
+        customer_phone,
+        customer_address,
+        customer_city,
+        customer_note: customer_note || null
+      }])
       .select()
       .single();
 
     if (orderError) throw orderError;
 
-    // 2. Preparar payload de Order Items
+    // 2. Inserir Order Items
     const orderItems = items.map(item => ({
       order_id: order.id,
       product_id: item.id,
@@ -27,7 +39,6 @@ const createOrder = async (req, res) => {
       unit_price: item.price
     }));
 
-    // 3. Inserir Order Items
     const { error: itemsError } = await supabaseAdmin
       .from('order_items')
       .insert(orderItems);
@@ -45,9 +56,10 @@ const getOrders = async (req, res) => {
   const userId = req.user.id;
   const role = req.user.role;
 
-  let query = supabaseAdmin.from('orders').select('*, order_items(*, products(name, image_url))');
+  let query = supabaseAdmin
+    .from('orders')
+    .select('*, order_items(*, products(name, image_url, price))');
 
-  // Se não for admin, filtra apenas os próprios
   if (role !== 'ADMIN') {
     query = query.eq('user_id', userId);
   }
