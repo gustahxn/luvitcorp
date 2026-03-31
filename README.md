@@ -1,10 +1,6 @@
-# LuvitCorp - Guia de Instalação e Execução
 
-Este guia contém as instruções para rodar a aplicação Full-Stack (Frontend React + Backend Express + Supabase) localmente ou através do **Docker**.
 
----
-
-## 🐋 1. Rodando com Docker (Recomendado)
+##  1. Docker (Recomendado)
 
 A forma mais rápida de rodar o projeto sem precisar instalar Node.js localmente é usando o Docker.
 
@@ -23,7 +19,7 @@ A forma mais rápida de rodar o projeto sem precisar instalar Node.js localmente
 
 ---
 
-## 💻 2. Rodando Localmente (Sem Docker)
+##  2. Rodando Localmente (Sem Docker)
 
 Se preferir rodar nativamente, siga os passos abaixo:
 
@@ -42,14 +38,14 @@ Se preferir rodar nativamente, siga os passos abaixo:
 
 ---
 
-## 🔑 Configurações do Banco (Supabase)
+##  Configurações do Banco (Supabase)
 
 Ambos os métodos exigem um projeto no [Supabase](https://supabase.com). 
 Certifique-se de aplicar o arquivo `supabase/schema.sql` no SQL Editor do seu projeto para criar as tabelas e políticas de segurança.
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## Tecnologias Utilizadas
 - **Frontend**: React, Vite, Nginx (no Docker).
 - **Backend**: Node.js, Express.
 - **Banco**: Supabase (Auth, Database, Storage).
