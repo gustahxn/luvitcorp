@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  # API
+  backend:
+    build: ./backend
+    container_name: luvitcorp-api
+    ports:
+      - "3001:3001"
+    env_file:
+      - backend/.env
+    restart: always
+
+  # Visual
+  frontend:
+    build: ./frontend
+    container_name: luvitcorp-web
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always

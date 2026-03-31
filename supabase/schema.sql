@@ -1,7 +1,3 @@
--- ==============================================================================
--- LuvitCorp - Supabase Schema
--- Executar no SQL Editor do seu projeto Supabase (lnqtuvtujcexvkmkpbhf)
--- ==============================================================================
 
 -- 1. Profiles Table (extends auth.users)
 CREATE TABLE public.profiles (
@@ -46,10 +42,6 @@ CREATE TABLE public.order_items (
   unit_price NUMERIC(10,2) NOT NULL
 );
 
--- ==============================================================================
--- Triggers e Funções
--- ==============================================================================
-
 -- Cria um registro em "profiles" automaticamente quando um usuário faz signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -68,9 +60,6 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- ==============================================================================
--- Row Level Security (RLS) Policies
--- ==============================================================================
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
