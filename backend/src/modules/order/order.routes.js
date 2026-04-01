@@ -3,13 +3,13 @@ const router = express.Router();
 const orderController = require('./order.controller');
 const { requireAuth, requireAdmin } = require('../../middlewares/auth');
 
-// Todas requisições de Order precisam de Auth
+// all order requests need auth
 router.use(requireAuth);
 
-router.post('/', orderController.createOrder); // Customer & Admin
-router.get('/', orderController.getOrders);    // Customer & Admin
+router.post('/', orderController.createOrder); // customer & admin
+router.get('/', orderController.getOrders);    // customer & admin
 
-// Apenas Admin pode mudar status
+// only admin can change status
 router.patch('/:id/status', requireAdmin, orderController.updateOrderStatus);
 
 module.exports = router;

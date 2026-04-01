@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-export default function PrivateRoute({ children }) {
+export default function PublicRoute({ children }) {
   const [session, setSession] = useState(undefined);
 
   useEffect(() => {
@@ -19,11 +19,11 @@ export default function PrivateRoute({ children }) {
 
   // Show loading while checking connection
   if (session === undefined) {
-    return <div className="container" style={{textAlign: 'center', marginTop: '4rem'}}>Autenticando na LuvitCorp...</div>;
+    return null; // Silent loading for public routes
   }
 
-  if (!session) {
-    return <Navigate to="/login" replace />;
+  if (session) {
+    return <Navigate to="/" replace />;
   }
 
   return children;

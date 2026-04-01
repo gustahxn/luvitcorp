@@ -6,20 +6,23 @@ import Dashboard from './pages/admin/Dashboard';
 import ProductForm from './pages/admin/ProductForm';
 import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
+import PublicRoute from './components/PublicRoute';
 import { Toaster } from 'react-hot-toast';
 
 
 function App() {
   return (
     <BrowserRouter>
-      {/* Navbar Minimalista Global */}
       <Navbar />
       
       <Toaster position="top-center" toastOptions={{ style: { fontSize: '0.875rem', fontWeight: '500' } }} />
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        } />
         
-        {/* Rotas Privadas (Redirecionam p/ login se anônimo) */}
         <Route path="/" element={
           <PrivateRoute>
             <Catalog />

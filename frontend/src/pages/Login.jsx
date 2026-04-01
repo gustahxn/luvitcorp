@@ -20,7 +20,7 @@ export default function Login() {
     setLoading(true);
     setMessage({ type: '', text: '' });
 
-    // Validacoes basicas
+    // basic validations
     if (!email.includes('@')) {
       showError('Informe um email válido.');
       setLoading(false);
@@ -131,7 +131,6 @@ export default function Login() {
         boxShadow: '0 4px 24px rgba(0, 0, 0, 0.06)',
       }}>
 
-        {/* Logo e Titulo */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{
             width: '48px',
@@ -142,7 +141,7 @@ export default function Login() {
             marginBottom: '1rem',
           }}>
              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="var(--text-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="var(--text-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
              </svg>
           </div>
           <h1 style={{ fontSize: '1.375rem', fontWeight: '700', marginBottom: '0.375rem', letterSpacing: '-0.02em' }}>
@@ -153,7 +152,6 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Abas */}
         <div style={{
           display: 'flex',
           gap: '0.25rem',
@@ -175,7 +173,7 @@ export default function Login() {
               fontWeight: isLogin ? '600' : '400',
               fontSize: '0.8125rem',
               cursor: 'pointer',
-              color: isLogin ? 'var(--text-color)' : 'var(--text-secondary)',
+              color: isLogin ? 'var(--text-primary)' : 'var(--text-secondary)',
               boxShadow: isLogin ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
               transition: 'all 0.2s',
             }}
@@ -195,7 +193,7 @@ export default function Login() {
               fontWeight: !isLogin ? '600' : '400',
               fontSize: '0.8125rem',
               cursor: 'pointer',
-              color: !isLogin ? 'var(--text-color)' : 'var(--text-secondary)',
+              color: !isLogin ? 'var(--text-primary)' : 'var(--text-secondary)',
               boxShadow: !isLogin ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
               transition: 'all 0.2s',
             }}
@@ -205,7 +203,6 @@ export default function Login() {
           </button>
         </div>
 
-        {/* Mensagens de Feedback */}
         {message.text && (
           <div style={{
             padding: '0.75rem 1rem',
@@ -222,13 +219,11 @@ export default function Login() {
           </div>
         )}
 
-        {/* Formulario */}
         <form onSubmit={handleSubmit}>
 
-          {/* Campo Nome (apenas no Cadastro) */}
           {!isLogin && (
             <div style={{ marginBottom: '1rem' }}>
-              <label htmlFor="name" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: '500', marginBottom: '0.375rem', color: 'var(--text-color)' }}>
+              <label htmlFor="name" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: '500', marginBottom: '0.375rem', color: 'var(--text-primary)' }}>
                 Nome completo
               </label>
               <input
@@ -248,15 +243,14 @@ export default function Login() {
                   transition: 'border-color 0.2s, box-shadow 0.2s',
                   backgroundColor: 'var(--bg-color)',
                 }}
-                onFocus={(e) => { e.target.style.borderColor = 'var(--text-color)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.06)'; }}
+                onFocus={(e) => { e.target.style.borderColor = 'var(--text-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.06)'; }}
                 onBlur={(e) => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.boxShadow = 'none'; }}
               />
             </div>
           )}
 
-          {/* Campo Email */}
           <div style={{ marginBottom: '1rem' }}>
-            <label htmlFor="email" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: '500', marginBottom: '0.375rem', color: 'var(--text-color)' }}>
+            <label htmlFor="email" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: '500', marginBottom: '0.375rem', color: 'var(--text-primary)' }}>
               Email
             </label>
             <input
@@ -276,14 +270,13 @@ export default function Login() {
                 transition: 'border-color 0.2s, box-shadow 0.2s',
                 backgroundColor: 'var(--bg-color)',
               }}
-              onFocus={(e) => { e.target.style.borderColor = 'var(--text-color)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.06)'; }}
+              onFocus={(e) => { e.target.style.borderColor = 'var(--text-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.06)'; }}
               onBlur={(e) => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.boxShadow = 'none'; }}
             />
           </div>
 
-          {/* Campo Senha com Toggle */}
           <div style={{ marginBottom: '1.75rem' }}>
-            <label htmlFor="password" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: '500', marginBottom: '0.375rem', color: 'var(--text-color)' }}>
+            <label htmlFor="password" style={{ display: 'block', fontSize: '0.8125rem', fontWeight: '500', marginBottom: '0.375rem', color: 'var(--text-primary)' }}>
               Senha
             </label>
             <div style={{ position: 'relative' }}>
@@ -305,7 +298,7 @@ export default function Login() {
                   transition: 'border-color 0.2s, box-shadow 0.2s',
                   backgroundColor: 'var(--bg-color)',
                 }}
-                onFocus={(e) => { e.target.style.borderColor = 'var(--text-color)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.06)'; }}
+                onFocus={(e) => { e.target.style.borderColor = 'var(--text-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,0,0,0.06)'; }}
                 onBlur={(e) => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.boxShadow = 'none'; }}
               />
               <button
@@ -328,18 +321,18 @@ export default function Login() {
                   borderRadius: '0.25rem',
                   transition: 'color 0.15s',
                 }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-color)'}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
               >
                 {showPassword ? (
-                  // Olho fechado (senha visivel -> clicar para ocultar)
+                  // closed eye (password visible -> click to hide)
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
                     <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
                     <line x1="1" y1="1" x2="23" y2="23" />
                   </svg>
                 ) : (
-                  // Olho aberto (senha oculta -> clicar para ver)
+                  // open eye (password hidden -> click to reveal)
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                     <circle cx="12" cy="12" r="3" />
@@ -354,13 +347,12 @@ export default function Login() {
             )}
           </div>
 
-          {/* Botao Submit */}
           <button
             type="submit"
             disabled={loading}
             style={{
               width: '100%',
-              backgroundColor: loading ? 'var(--accent-hover)' : 'var(--text-color)',
+              backgroundColor: loading ? 'var(--accent-hover)' : 'var(--text-primary)',
               color: '#fff',
               padding: '0.75rem',
               borderRadius: '0.5rem',
@@ -390,7 +382,6 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Footer hint */}
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
           {isLogin ? 'Ainda não tem conta? ' : 'Já possui conta? '}
           <button
@@ -399,7 +390,7 @@ export default function Login() {
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--text-color)',
+              color: 'var(--text-primary)',
               fontWeight: '600',
               cursor: 'pointer',
               textDecoration: 'underline',
@@ -412,7 +403,6 @@ export default function Login() {
         </p>
       </div>
 
-      {/* Spinner CSS animation */}
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }

@@ -2,132 +2,158 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useCartStore } from '../contexts/CartContext';
+import toast from 'react-hot-toast';
+import { Check, ShoppingCart, Image as ImageIcon } from 'lucide-react';
 
 export default function Catalog() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [addedId, setAddedId] = useState(null);
-  const navigate = useNavigate();
   const addItem = useCartStore(state => state.addItem);
 
   useEffect(() => {
-    async function fetchProducts() {
-      const { data, error } = await supabase
+    async function fetchProductsAndRole() {
+      // fetch products
+      const { data: prods, error: pErr } = await supabase
         .from('products')
         .select('*')
         .eq('active', true);
       
-      if (!error && data) {
-        setProducts(data);
+      if (!pErr && prods) {
+        setProducts(prods);
       }
+      
+      // fetch role
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        if (profile?.role === 'ADMIN') {
+          setIsAdmin(true);
+        }
+      }
+      
       setLoading(false);
     }
     
-    fetchProducts();
+    fetchProductsAndRole();
   }, []);
 
   const handleAddToCart = useCallback((product) => {
+    if (isAdmin) {
+      toast.error('Administradores não podem adicionar itens ao carrinho');
+      return;
+    }
     addItem(product);
+    toast.success(`${product.name} adicionado ao carrinho!`, { id: `cart-${product.id}` });
     setAddedId(product.id);
     setTimeout(() => setAddedId(null), 1500);
-  }, [addItem]);
+  }, [addItem, isAdmin]);
 
   if (loading) {
-    return <div className="container" style={{textAlign: 'center', marginTop: '4rem'}}>Carregando catálogo...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-[60vh] flex-col gap-4">
+        <div className="w-8 h-8 border-4 border-zinc-200 border-t-zinc-900 rounded-full animate-spin"></div>
+        <p className="text-zinc-500 font-medium tracking-wide">Carregando catálogo...</p>
+      </div>
+    );
   }
 
   return (
     <>
-      {/* Hero Section */}
-      <div style={{ backgroundColor: 'var(--text-color)', color: '#fff', padding: '4rem 1rem', textAlign: 'center' }}>
-        <div className="container" style={{ padding: '0' }}>
-          <h1 style={{ fontSize: '3rem', fontWeight: '800', marginBottom: '1rem', letterSpacing: '-0.03em' }}>
+      <div className="bg-slate-900 text-white py-20 px-4 text-center transition-colors">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-4xl md:text-5xl font-extrabold mb-5 tracking-tight">
             Minimalismo Essencial.
           </h1>
-          <p style={{ color: '#a1a1aa', fontSize: '1.125rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
+          <p className="text-zinc-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
             Descubra produtos pensados para o seu dia a dia. Design limpo, materiais premium e usabilidade sem distrações.
           </p>
         </div>
       </div>
       
-      <main className="container" style={{ paddingTop: '3rem', paddingBottom: '4rem' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '2rem', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          Coleção Atual <span style={{ padding: '0.25rem 0.5rem', background: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: '600' }}>{products.length} itens</span>
-        </h2>
-        
-        <div className="catalog-grid">
-          {products.map(product => {
-            const isAdded = addedId === product.id;
-            return (
-              <div key={product.id} className="product-card">
-                <div style={{ position: 'relative' }}>
-                   {product.image_url ? (
-                     <img 
-                       src={product.image_url} 
-                       alt={product.name} 
-                       className="product-image"
-                     />
-                   ) : (
-                     <div className="product-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f4f5', color: '#a1a1aa' }}>
-                       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                         <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                         <polyline points="21 15 16 10 5 21"></polyline>
-                       </svg>
-                     </div>
-                   )}
-                   {product.category && (
-                      <span style={{ position: 'absolute', top: '1rem', left: '1rem', background: 'var(--surface-color)', color: 'var(--text-color)', padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.6875rem', fontWeight: '600', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                        {product.category}
-                      </span>
-                   )}
-                </div>
-                <div className="product-content">
-                  <h3 className="product-title" style={{ fontSize: '1.125rem' }}>{product.name}</h3>
-                  <p className="product-desc" style={{ minHeight: '40px' }}>{product.description}</p>
-                  <div className="product-price" style={{ marginBottom: '1.25rem', fontSize: '1.125rem' }}>R$ {Number(product.price).toFixed(2).replace('.', ',')}</div>
-                  <button 
-                    onClick={() => handleAddToCart(product)} 
-                    disabled={isAdded}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      borderRadius: '0.5rem',
-                      fontWeight: '600',
-                      fontSize: '0.875rem',
-                      border: 'none',
-                      cursor: isAdded ? 'default' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.5rem',
-                      backgroundColor: isAdded ? 'var(--success-color)' : 'var(--accent-color)',
-                      color: '#fff',
-                      transition: 'background-color 0.3s, transform 0.15s',
-                      transform: isAdded ? 'scale(0.97)' : 'scale(1)',
-                    }}
-                  >
-                    {isAdded ? (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                        Adicionado!
-                      </>
-                    ) : (
-                      'Adicionar ao Carrinho'
-                    )}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-          {products.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', padding: '4rem', textAlign: 'center', backgroundColor: 'var(--bg-color)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
-              <p style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Nenhum produto disponível no momento.</p>
-            </div>
-          )}
+      <main className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-3 mb-10">
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900">
+            Coleção Atual
+          </h2>
+          <span className="px-3 py-1 bg-zinc-100 text-zinc-600 border border-zinc-200 rounded-full text-xs font-semibold">
+            {products.length} itens
+          </span>
         </div>
+        
+        {products.length === 0 ? (
+          <div className="col-span-full p-16 text-center bg-zinc-50 rounded-2xl border border-zinc-200">
+            <p className="text-zinc-500 font-medium text-lg">Nenhum produto disponível no momento.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {products.map(product => {
+              const isAdded = addedId === product.id;
+              return (
+                <div key={product.id} className="group bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <div className="relative aspect-square overflow-hidden bg-zinc-100 flex items-center justify-center">
+                     {product.image_url ? (
+                       <img 
+                         src={product.image_url} 
+                         alt={product.name} 
+                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                       />
+                     ) : (
+                       <ImageIcon className="w-12 h-12 text-zinc-400" />
+                     )}
+                     {product.category && (
+                        <span className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm text-zinc-900 px-3 py-1 rounded-full text-xs font-bold shadow-sm border border-zinc-200">
+                          {product.category}
+                        </span>
+                     )}
+                  </div>
+                  
+                  <div className="p-5 flex flex-col min-h-[180px]">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-zinc-900 mb-2 line-clamp-1">{product.name}</h3>
+                      <p className="text-sm text-zinc-500 mb-4 line-clamp-2 min-h-[40px] leading-relaxed">
+                        {product.description}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-auto">
+                      <div className="text-lg font-bold text-zinc-900">
+                        R$ {Number(product.price).toFixed(2).replace('.', ',')}
+                      </div>
+                      <button 
+                        onClick={() => handleAddToCart(product)} 
+                        disabled={isAdded && !isAdmin}
+                        className={`
+                          p-2.5 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900:ring-offset-zinc-900:ring-white
+                          ${isAdded 
+                            ? 'bg-green-600 hover:bg-green-700 text-white shadow-md shadow-green-600/20 scale-95' 
+                            : 'bg-zinc-900 text-white hover:bg-zinc-800:bg-zinc-100 shadow-md shadow-zinc-900/10'
+                          }
+                        `}
+                        title={isAdded ? "Adicionado" : "Adicionar ao carrinho"}
+                      >
+                        {isAdded ? (
+                          <>
+                            <Check className="w-4 h-4" strokeWidth={3} /> <span className="hidden sm:inline">Adicionado</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-4 h-4" /> <span className="hidden sm:inline">Adicionar</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </main>
     </>
   );

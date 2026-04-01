@@ -21,11 +21,11 @@ async function seedAdmin() {
   console.log(`Senha: ${ADMIN_PASSWORD}`);
   console.log('---');
 
-  // 1. Criar o usuario no Supabase Auth (via Admin API)
+  // 1. create user in supabase auth (via admin api)
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: ADMIN_EMAIL,
     password: ADMIN_PASSWORD,
-    email_confirm: true, // Marca como confirmado automaticamente
+    email_confirm: true, // automatically marks as confirmed
     user_metadata: {
       name: ADMIN_NAME,
       role: 'ADMIN'
@@ -36,7 +36,7 @@ async function seedAdmin() {
     if (authError.message.includes('already been registered')) {
       console.log('O usuario admin ja existe. Atualizando role para ADMIN...');
       
-      // Buscar o user existente e atualizar o profile
+      // fetch existing user and update profile
       const { data: users } = await supabaseAdmin.auth.admin.listUsers();
       const existingUser = users?.users?.find(u => u.email === ADMIN_EMAIL);
       
@@ -60,9 +60,9 @@ async function seedAdmin() {
 
   console.log('Usuario criado no Auth! ID:', authData.user.id);
 
-  // 2. O trigger do banco (handle_new_user) ja insere em profiles,
-  //    mas vamos garantir que a role seja ADMIN
-  //    Aguardar um momento para o trigger executar
+  // 2. db trigger (handle_new_user) already inserts into profiles,
+  //    but lets guarantee the role is admin
+  //    wait a moment for the trigger to execute
   await new Promise(r => setTimeout(r, 1500));
 
   const { error: profileError } = await supabaseAdmin

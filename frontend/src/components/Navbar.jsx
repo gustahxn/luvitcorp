@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useCartStore } from '../contexts/CartContext';
+import { Sun, Moon } from 'lucide-react';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [scrolled, setScrolled] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -15,6 +18,12 @@ export default function Navbar() {
 
   const isLoginPage = location.pathname === '/login';
   const isAdminPage = location.pathname.startsWith('/admin');
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -36,9 +45,8 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Limpar o carrinho sempre que o usuário mudar (evita carrinho compartilhado)
   useEffect(() => {
-    clearCart();
+    // Cart clears optionally handled locally or persisting via Zustand
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchProfile(userId) {
@@ -47,230 +55,218 @@ export default function Navbar() {
   }
 
   const handleLogout = async () => {
-    clearCart(); // Limpa o carrinho ao sair
     await supabase.auth.signOut();
     navigate('/login');
   };
 
   if (isLoginPage) return null;
 
+  const glassStyle = {
+    backgroundColor: scrolled 
+      ? 'rgba(255, 255, 255, 0.8)'
+      : 'transparent',
+    backdropFilter: scrolled ? 'blur(12px)' : 'none',
+    borderBottom: scrolled 
+      ? '1px solid rgba(0, 0, 0, 0.05)'
+      : '1px solid transparent',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  };
+
+  const navItemStyle = {
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    color: 'var(--text-secondary)',
+    transition: 'color 0.2s',
+    cursor: 'pointer',
+    textDecoration: 'none',
+  };
+
+  const activeNavItemStyle = {
+    ...navItemStyle,
+    color: 'var(--text-primary)',
+    fontWeight: '600',
+  };
+
   return (
     <header style={{
-      borderBottom: '1px solid var(--border-color)',
-      backgroundColor: 'var(--surface-color)',
       position: 'sticky',
       top: 0,
-      zIndex: 50,
-      backdropFilter: 'blur(12px)',
+      zIndex: 100,
+      width: '100%',
+      ...glassStyle
     }}>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '0.875rem 1.5rem',
+        padding: scrolled ? '0.75rem 2rem' : '1.25rem 2rem',
         margin: '0 auto',
-        maxWidth: '1200px',
+        maxWidth: '1400px',
+        transition: 'padding 0.3s ease',
       }}>
         
-        {/* Logo */}
-        <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-          <div style={{
-            width: '36px',
-            height: '36px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="var(--text-color)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-             </svg>
-          </div>
-          <div>
-            <span style={{ fontWeight: '700', fontSize: '1.125rem', letterSpacing: '-0.03em', display: 'block', lineHeight: '1.1' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3rem' }}>
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none' }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              background: 'var(--text-primary)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            <span style={{ 
+              fontWeight: '700', 
+              fontSize: '1.25rem', 
+              letterSpacing: '-0.04em', 
+              color: 'var(--text-primary)',
+              fontFamily: 'Inter, sans-serif'
+            }}>
               LuvitCorp
             </span>
-            <span style={{ fontSize: '0.625rem', color: 'var(--text-secondary)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: '500' }}>
-              Minimal Store
-            </span>
-          </div>
-        </Link>
+          </Link>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <nav style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+            <Link to="/" style={location.pathname === '/' ? activeNavItemStyle : navItemStyle}>
+              Catálogo
+            </Link>
+            {profile?.role === 'ADMIN' && (
+              <Link to="/admin" style={isAdminPage ? activeNavItemStyle : navItemStyle}>
+                Administração
+              </Link>
+            )}
+          </nav>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          
           {user ? (
-            <>
-              {/* User Info */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.375rem 0.75rem',
-                backgroundColor: 'var(--bg-color)',
-                borderRadius: '2rem',
-                border: '1px solid var(--border-color)',
-              }}>
-                <div style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--text-color)',
-                  color: '#fff',
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              
+              {profile?.role !== 'ADMIN' && (
+                <Link to="/checkout" style={{
+                  position: 'relative',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.625rem',
-                  fontWeight: '700',
-                }}>
-                  {(profile?.name || user.email)[0].toUpperCase()}
-                </div>
-                <span style={{ fontSize: '0.8125rem', fontWeight: '500', color: 'var(--text-color)' }}>
-                  {profile?.name || user.email.split('@')[0]}
-                </span>
-              </div>
-
-              {/* Admin Links */}
-              {profile?.role === 'ADMIN' && (
-                isAdminPage ? (
-                  <button
-                    onClick={() => navigate('/')}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      backgroundColor: 'var(--text-color)',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.8125rem',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'opacity 0.15s, transform 0.1s',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.96)'}
-                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                  >
-                    Loja
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => navigate('/admin')}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      backgroundColor: 'var(--surface-color)',
-                      color: 'var(--text-color)',
-                      border: '2px solid var(--text-color)',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.8125rem',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.backgroundColor = 'var(--text-color)';
-                      e.currentTarget.style.color = '#fff';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.backgroundColor = 'var(--surface-color)';
-                      e.currentTarget.style.color = 'var(--text-color)';
-                    }}
-                  >
-                    Painel Admin
-                  </button>
-                )
-              )}
-
-              {/* Cart — oculto para Admins */}
-              {profile?.role !== 'ADMIN' && (
-                <button
-                  onClick={() => navigate('/checkout')}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: 'var(--text-color)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.8125rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    transition: 'opacity 0.15s, transform 0.1s',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                  onMouseDown={e => e.currentTarget.style.transform = 'scale(0.96)'}
-                  onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                  padding: '0.5rem',
+                  borderRadius: 'var(--radius-full)',
+                  transition: 'background 0.2s',
+                  color: 'var(--text-primary)'
+                }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  Carrinho
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                  </svg>
                   {itemsCount > 0 && (
                     <span style={{
-                      backgroundColor: '#fff',
-                      color: 'var(--text-color)',
-                      borderRadius: '50%',
-                      width: '20px',
-                      height: '20px',
-                      display: 'inline-flex',
+                      position: 'absolute',
+                      top: '0px',
+                      right: '0px',
+                      background: 'var(--accent-color)',
+                      color: 'white',
+                      fontSize: '0.625rem',
+                      fontWeight: '700',
+                      minWidth: '16px',
+                      height: '16px',
+                      borderRadius: '8px',
+                      display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '0.6875rem',
-                      fontWeight: '700',
-                      marginLeft: '0.125rem',
+                      padding: '0 4px',
+                      border: '2px solid white'
                     }}>
                       {itemsCount}
                     </span>
                   )}
-                </button>
+                </Link>
               )}
 
-              {/* Logout */}
-              <button
-                onClick={handleLogout}
-                style={{
-                  fontSize: '0.8125rem',
-                  color: 'var(--danger-color)',
-                  backgroundColor: '#fee2e2',
-                  border: '1px solid #fecaca',
-                  borderRadius: '0.5rem',
-                  padding: '0.5rem 1rem',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  transition: 'background-color 0.15s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fecaca'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fee2e2'}
-              >
-                Sair
-              </button>
-            </>
+              <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border-color)' }} />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: '1.1' }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    Olá, {profile?.name || user.email.split('@')[0]}
+                  </span>
+                  {profile?.role === 'ADMIN' && (
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', textTransform: 'lowercase' }}>
+                      {profile?.role}
+                    </span>
+                  )}
+                </div>
+                
+                <button 
+                  onClick={handleLogout}
+                  title="Sair da conta"
+                  style={{
+                    padding: '0.5rem',
+                    color: 'var(--text-secondary)',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    transition: 'all 0.2s',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginLeft: '0.25rem'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.color = 'var(--danger-color)';
+                    e.currentTarget.style.backgroundColor = '#fee2e2';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
           ) : (
-            <button
-              onClick={() => navigate('/login')}
-              style={{
-                padding: '0.625rem 1.5rem',
-                backgroundColor: 'var(--text-color)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'opacity 0.15s, transform 0.1s',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}
-              onMouseEnter={e => e.target.style.opacity = '0.9'}
-              onMouseLeave={e => e.target.style.opacity = '1'}
-              onMouseDown={e => e.target.style.transform = 'scale(0.96)'}
-              onMouseUp={e => e.target.style.transform = 'scale(1)'}
+            <Link to="/login" style={{
+              padding: '0.625rem 1.75rem',
+              background: 'var(--text-primary)',
+              color: 'white',
+              fontSize: '0.875rem',
+              fontWeight: '600',
+              borderRadius: 'var(--radius-full)',
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              textDecoration: 'none'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.15)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+            }}
             >
-              Entrar
-            </button>
+              Começar agora
+            </Link>
           )}
         </div>
       </div>
     </header>
   );
 }
+

@@ -1,6 +1,6 @@
 const supabaseAdmin = require('../../config/supabase');
 
-// Criar Pedido (Autenticado)
+// create order (authenticated)
 const createOrder = async (req, res) => {
   try {
     const { items, total, customer_name, customer_phone, customer_address, customer_city, customer_note } = req.body;
@@ -13,7 +13,7 @@ const createOrder = async (req, res) => {
       return res.status(400).json({ error: 'Dados de entrega incompletos' });
     }
 
-    // 1. Criar ordem pai com dados do cliente
+    // 1. create parent order with customer data
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert([{ 

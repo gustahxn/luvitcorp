@@ -46,7 +46,7 @@ export default function ProductForm() {
     setLoading(true);
     setMessage({ type: '', text: '' });
 
-    // Validacoes
+    // validations
     if (!product.name.trim()) {
       setMessage({ type: 'error', text: 'O nome do produto é obrigatório.' });
       setLoading(false);
@@ -59,7 +59,7 @@ export default function ProductForm() {
     }
 
     const priceStr = String(product.price).replace(',', '.');
-    // Preparar payload com tipos corretos para o Supabase
+    // prepare payload with correct types for supabase
     const payload = {
       name: product.name.trim(),
       description: product.description?.trim() || null,
@@ -114,9 +114,9 @@ export default function ProductForm() {
   if (id && loading && !product.name) {
     return (
       <div className="container" style={{ maxWidth: '580px', margin: '0 auto', textAlign: 'center', padding: '4rem 0' }}>
-         <div style={{ display: 'inline-block', width: '24px', height: '24px', border: '3px solid var(--border-color)', borderTopColor: 'var(--text-color)', borderRadius: '50%', animation: 'spin 0.6s linear infinite', marginBottom: '1rem' }} />
-         <p style={{ color: 'var(--text-secondary)' }}>Buscando dados do produto...</p>
-         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ display: 'inline-block', width: '24px', height: '24px', border: '3px solid var(--border-color)', borderTopColor: 'var(--text-color)', borderRadius: '50%', animation: 'spin 0.6s linear infinite', marginBottom: '1rem' }} />
+        <p style={{ color: 'var(--text-secondary)' }}>Buscando dados do produto...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -137,7 +137,6 @@ export default function ProductForm() {
         </button>
       </div>
 
-      {/* Mensagem de Feedback */}
       {message.text && (
         <div style={{
           padding: '0.75rem 1rem',
@@ -163,7 +162,6 @@ export default function ProductForm() {
           boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
         }}
       >
-        {/* Nome */}
         <div style={{ marginBottom: '1.25rem' }}>
           <label htmlFor="name" style={labelStyle}>
             Nome do Produto <span style={{ color: 'var(--danger-color)' }}>*</span>
@@ -171,13 +169,11 @@ export default function ProductForm() {
           <input id="name" name="name" style={inputStyle} value={product.name} onChange={handleChange} required placeholder="Ex: Camiseta Essencial" {...focusHandlers} />
         </div>
 
-        {/* Descricao */}
         <div style={{ marginBottom: '1.25rem' }}>
           <label htmlFor="description" style={labelStyle}>Descricao</label>
           <textarea id="description" name="description" style={{ ...inputStyle, resize: 'vertical', minHeight: '80px' }} value={product.description || ''} onChange={handleChange} rows="3" placeholder="Descreva brevemente o produto..." {...focusHandlers} />
         </div>
 
-        {/* Preco + Estoque lado a lado */}
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.25rem' }}>
           <div style={{ flex: 1 }}>
             <label htmlFor="price" style={labelStyle}>
@@ -193,13 +189,11 @@ export default function ProductForm() {
           </div>
         </div>
 
-        {/* Categoria */}
         <div style={{ marginBottom: '1.25rem' }}>
           <label htmlFor="category" style={labelStyle}>Categoria</label>
           <input id="category" name="category" style={inputStyle} value={product.category || ''} onChange={handleChange} placeholder="Ex: Vestuário, Acessórios..." {...focusHandlers} />
         </div>
 
-        {/* URL da imagem */}
         <div style={{ marginBottom: '1.25rem' }}>
           <label htmlFor="image_url" style={labelStyle}>URL da Imagem</label>
           <input id="image_url" name="image_url" type="url" style={inputStyle} value={product.image_url || ''} onChange={handleChange} placeholder="https://..." {...focusHandlers} />
@@ -212,7 +206,6 @@ export default function ProductForm() {
           )}
         </div>
 
-        {/* Ativo */}
         <div style={{ marginBottom: '1.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <input id="active" name="active" type="checkbox" checked={product.active} onChange={handleChange}
             style={{ width: '16px', height: '16px', accentColor: 'var(--text-color)', cursor: 'pointer' }}
@@ -220,14 +213,13 @@ export default function ProductForm() {
           <label htmlFor="active" style={{ fontWeight: '500', fontSize: '0.875rem', cursor: 'pointer' }}>Produto ativo no catálogo</label>
         </div>
 
-        {/* Botao */}
         <button
           type="submit"
           disabled={loading}
           style={{
             width: '100%',
-            backgroundColor: loading ? 'var(--accent-hover)' : 'var(--text-color)',
-            color: '#fff',
+            backgroundColor: loading ? 'var(--text-secondary)' : 'var(--text-primary)',
+            color: '#ffffff',
             padding: '0.75rem',
             borderRadius: '0.5rem',
             fontWeight: '600',

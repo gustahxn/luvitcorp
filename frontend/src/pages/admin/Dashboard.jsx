@@ -3,14 +3,15 @@ import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-
+import { Edit2, Trash2, Download, ChevronDown, Plus, Loader2 } from 'lucide-react';
+import * as XLSX from 'xlsx-js-style';
 
 const STATUS_LABELS = {
-  PENDING: { label: 'Pendente', bg: '#fef9c3', color: '#854d0e' },
-  CONFIRMED: { label: 'Confirmado', bg: '#dbeafe', color: '#1d4ed8' },
-  PREPARING: { label: 'Preparando', bg: '#ede9fe', color: '#6d28d9' },
-  DELIVERED: { label: 'Entregue', bg: '#dcfce7', color: '#166534' },
-  CANCELLED: { label: 'Cancelado', bg: '#fee2e2', color: '#991b1b' },
+  PENDING: { label: 'Pendente', bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' },
+  CONFIRMED: { label: 'Confirmado', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200' },
+  PREPARING: { label: 'Preparando', bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
+  DELIVERED: { label: 'Entregue', bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200' },
+  CANCELLED: { label: 'Cancelado', bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200' },
 };
 
 export default function Dashboard() {
@@ -34,7 +35,7 @@ export default function Dashboard() {
 
       const [{ data: prods }, ordersRes] = await Promise.all([
         supabase.from('products').select('*').order('created_at', { ascending: false }),
-        api.get('/orders'),
+        api.get('/orders').catch(() => ({ data: [] })),
       ]);
 
       if (prods) setProducts(prods);
@@ -45,7 +46,7 @@ export default function Dashboard() {
   }, [navigate]);
 
   const handleStatusChange = async (orderId, newStatus) => {
-    setStatusUpdating(orderId);
+    setStatusUpdating(`${orderId}-${newStatus}`);
     try {
       await api.patch(`/orders/${orderId}/status`, { status: newStatus });
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
@@ -59,12 +60,15 @@ export default function Dashboard() {
 
   const handleDeleteProduct = (id, name) => {
     toast((t) => (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <p style={{ fontWeight: 600, margin: 0, fontSize: '0.875rem' }}>Tem certeza que deseja excluir '{name}'?</p>
-        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+      <div className="flex flex-col gap-4 min-w-[320px]">
+        <p className="font-semibold text-sm m-0 text-zinc-900">
+          Tem certeza que deseja excluir '{name}'?
+        </p>
+        <div className="flex gap-2 justify-end">
           <button 
             onClick={() => toast.dismiss(t.id)}
-            style={{ padding: '0.375rem 0.75rem', border: '1px solid var(--border-color)', borderRadius: '0.25rem', cursor: 'pointer', background: 'transparent', fontSize: '0.8125rem', fontWeight: 500 }}>
+            className="px-3 py-1.5 border border-zinc-200 rounded-md bg-transparent text-sm font-medium text-zinc-700 hover:bg-zinc-50:bg-zinc-800 transition-colors"
+          >
             Cancelar
           </button>
           <button 
@@ -85,169 +89,250 @@ export default function Dashboard() {
                 error: (e) => e.response?.data?.error || 'Erro ao excluir produto.'
               });
             }}
-            style={{ padding: '0.375rem 0.75rem', border: 'none', background: 'var(--danger-color)', color: '#fff', borderRadius: '0.25rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500 }}>
+            className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm font-medium transition-colors"
+          >
             Excluir
           </button>
         </div>
       </div>
-    ), { duration: Infinity, style: { minWidth: '320px' } });
+    ), { duration: Infinity });
   };
 
-  const handleExportOrderCSV = (order) => {
-    const headers = ['ID do Pedido', 'Data', 'Cliente', 'Telefone', 'Endereço', 'Status', 'Total (R$)', 'Produto', 'Quantidade', 'Preço Unit. (R$)'];
-    const rows = [];
-    
-    // Tratamento para excel: "=" antes da string escapa comportamento de formulas
-    const baseInfo = [
-      order.id.slice(0, 8).toUpperCase(),
-      new Date(order.created_at).toLocaleString('pt-BR'),
-      `"${order.customer_name || '-'}"`,
-      `"=""${order.customer_phone || ''}"""`,
-      `"${order.customer_address || ''} - ${order.customer_city || ''}"`,
-      STATUS_LABELS[order.status]?.label || 'Pendente',
-      Number(order.total).toFixed(2).replace('.', ',')
+  const handleExportOrderExcel = (order) => {
+    const itemsString = (order.order_items || []).map(item => 
+      `${item.quantity}x ${item.products?.name || 'Produto'} (R$ ${Number(item.unit_price).toFixed(2).replace('.', ',')} un.)`
+    ).join('\n');
+
+    const data = [{
+      'ID do Pedido': order.id.slice(0, 8).toUpperCase(),
+      'Data': new Date(order.created_at).toLocaleString('pt-BR'),
+      'Cliente': order.customer_name || '-',
+      'Telefone': order.customer_phone || '-',
+      'Endereço': `${order.customer_address || ''} - ${order.customer_city || ''}`,
+      'Status': STATUS_LABELS[order.status]?.label || 'Pendente',
+      'Total (R$)': Number(order.total).toFixed(2).replace('.', ','),
+      'Itens do Pedido': itemsString || '-'
+    }];
+
+    const applyStylesToWorksheet = (ws, rowsHeights) => {
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!ws[cellAddress]) continue;
+          ws[cellAddress].s = {
+            alignment: { vertical: 'top', wrapText: true },
+            font: R === 0 ? { bold: true } : {}
+          };
+        }
+      }
+      ws['!rows'] = rowsHeights;
+    };
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    worksheet['!cols'] = [
+      { wch: 15 }, { wch: 20 }, { wch: 25 }, { wch: 16 }, 
+      { wch: 50 }, { wch: 15 }, { wch: 15 }, { wch: 60 }
     ];
+    
+    const linesCount = Math.max(1, order.order_items?.length || 1);
+    const rowsHeights = [{ hpt: 20 }, { hpt: linesCount * 16 }];
+    applyStylesToWorksheet(worksheet, rowsHeights);
 
-    if (!order.order_items || order.order_items.length === 0) {
-       rows.push([...baseInfo, '-', '-', '-']);
-    } else {
-       order.order_items.forEach(item => {
-         rows.push([
-           ...baseInfo,
-           `"${item.products?.name || 'Produto'}"`,
-           item.quantity,
-           Number(item.unit_price).toFixed(2).replace('.', ',')
-         ]);
-       });
-    }
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Pedido ${order.id.slice(0, 8).toUpperCase()}`);
+    XLSX.writeFile(workbook, `pedido_luvitcorp_${order.id.slice(0, 8).toUpperCase()}.xlsx`);
+    toast.success('Pedido exportado em Excel!');
+  };
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
-      + [headers.join(';'), ...rows.map(e => e.join(';'))].join("\n");
-      
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `pedido_luvitcorp_${order.id.slice(0, 8)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Pedido exportado!');
+  const handleExportAllExcel = () => {
+    const data = orders.map(order => {
+      const itemsString = (order.order_items || []).map(item => 
+        `${item.quantity}x ${item.products?.name || 'Produto'} (R$ ${Number(item.unit_price).toFixed(2).replace('.', ',')} un.)`
+      ).join('\n');
+
+      return {
+        'ID do Pedido': order.id.slice(0, 8).toUpperCase(),
+        'Data': new Date(order.created_at).toLocaleString('pt-BR'),
+        'Cliente': order.customer_name || '-',
+        'Telefone': order.customer_phone || '-',
+        'Endereço': `${order.customer_address || ''} - ${order.customer_city || ''}`,
+        'Status': STATUS_LABELS[order.status]?.label || 'Pendente',
+        'Total (R$)': Number(order.total).toFixed(2).replace('.', ','),
+        'Itens do Pedido': itemsString || '-'
+      };
+    });
+
+    const applyStylesToWorksheet = (ws, rowsHeights) => {
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+          if (!ws[cellAddress]) continue;
+          ws[cellAddress].s = {
+            alignment: { vertical: 'top', wrapText: true },
+            font: R === 0 ? { bold: true } : {}
+          };
+        }
+      }
+      ws['!rows'] = rowsHeights;
+    };
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    
+    worksheet['!cols'] = [
+      { wch: 15 }, // id
+      { wch: 20 }, // date
+      { wch: 25 }, // customer
+      { wch: 16 }, // phone
+      { wch: 50 }, // address
+      { wch: 15 }, // status
+      { wch: 15 }, // total
+      { wch: 60 }  // items
+    ];
+    
+    const rowsHeights = [{ hpt: 20 }]; // header
+    orders.forEach(order => {
+      const linesCount = Math.max(1, order.order_items?.length || 1);
+      rowsHeights.push({ hpt: linesCount * 16 });
+    });
+    applyStylesToWorksheet(worksheet, rowsHeights);
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Todos os Pedidos");
+    XLSX.writeFile(workbook, "luvitcorp_todos_pedidos.xlsx");
+    toast.success('Todos os pedidos exportados em Excel!');
   };
 
   if (loading) {
     return (
-      <div className="container" style={{ textAlign: 'center', marginTop: '4rem' }}>
-        <div style={{ display: 'inline-block', width: '24px', height: '24px', border: '3px solid var(--border-color)', borderTopColor: 'var(--text-color)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div className="flex justify-center items-center min-h-[60vh] flex-col gap-4">
+        <Loader2 className="w-8 h-8 text-zinc-900 animate-spin" />
+        <p className="text-zinc-500 font-medium tracking-wide">Carregando painel...</p>
       </div>
     );
   }
 
-  const tabStyle = (isActive) => ({
-    padding: '0.625rem 1.25rem',
-    borderRadius: '0.375rem',
-    fontWeight: isActive ? '600' : '400',
-    fontSize: '0.875rem',
-    border: 'none',
-    cursor: 'pointer',
-    backgroundColor: isActive ? 'var(--text-color)' : 'transparent',
-    color: isActive ? '#fff' : 'var(--text-secondary)',
-    transition: 'all 0.2s',
-  });
-
   return (
-    <div className="container">
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: '700', letterSpacing: '-0.02em' }}>Painel Admin</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Administração</h1>
+          <p className="text-zinc-500 text-sm mt-1">
             {products.length} produtos · {orders.length} pedidos
           </p>
         </div>
-        {activeTab === 'products' && (
-          <button onClick={() => navigate('/admin/products/new')} className="btn-primary" style={{ width: 'auto', padding: '0.625rem 1.25rem', fontSize: '0.875rem' }}>
-            + Novo Produto
-          </button>
-        )}
+        <div className="flex gap-3">
+          {activeTab === 'orders' && (
+            <button 
+              onClick={() => handleExportAllExcel()} 
+              className="flex items-center gap-2 bg-white border border-zinc-200 text-zinc-700 px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-zinc-50 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20"
+            >
+              <Download size={18} /> Exportar Todos (.xlsx)
+            </button>
+          )}
+          {activeTab === 'products' && (
+            <button 
+              onClick={() => navigate('/admin/products/new')} 
+              className="flex items-center gap-2 bg-zinc-900 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-zinc-800 transition-all shadow-sm"
+            >
+              <Plus size={18} /> Novo Produto
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', background: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', width: 'fit-content', marginBottom: '1.75rem' }}>
-        <button style={tabStyle(activeTab === 'products')} onClick={() => setActiveTab('products')}>Produtos</button>
-        <button style={tabStyle(activeTab === 'orders')} onClick={() => setActiveTab('orders')}>
-          Pedidos {orders.filter(o => o.status === 'PENDING').length > 0 && (
-            <span style={{ marginLeft: '0.375rem', backgroundColor: '#ef4444', color: '#fff', borderRadius: '999px', padding: '0 0.375rem', fontSize: '0.6875rem', fontWeight: '700' }}>
+      <div className="flex bg-zinc-100 p-1 rounded-xl w-fit mb-8 border border-zinc-200">
+        <button 
+          className={`px-6 py-2 rounded-lg text-sm transition-all focus:outline-none ${
+            activeTab === 'products' 
+              ? 'bg-white text-zinc-900 font-semibold shadow-sm ring-1 ring-zinc-900/5' 
+              : 'text-zinc-500 hover:text-zinc-700:text-zinc-200 font-medium'
+          }`}
+          onClick={() => setActiveTab('products')}
+        >
+          Produtos
+        </button>
+        <button 
+          className={`relative px-6 py-2 rounded-lg text-sm transition-all flex items-center gap-2 focus:outline-none ${
+            activeTab === 'orders' 
+              ? 'bg-white text-zinc-900 font-semibold shadow-sm ring-1 ring-zinc-900/5' 
+              : 'text-zinc-500 hover:text-zinc-700:text-zinc-200 font-medium'
+          }`}
+          onClick={() => setActiveTab('orders')}
+        >
+          Pedidos
+          {orders.filter(o => o.status === 'PENDING').length > 0 && (
+            <span className="bg-red-500 text-white rounded-full px-2 py-0.5 text-[10px] font-bold">
               {orders.filter(o => o.status === 'PENDING').length}
             </span>
           )}
         </button>
       </div>
 
-      {/* TAB: PRODUTOS */}
       {activeTab === 'products' && (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="admin-table">
-            <thead>
+        <div className="bg-white border border-zinc-200 rounded-2xl overflow-x-auto shadow-sm">
+          <table className="w-full text-left whitespace-nowrap">
+            <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 text-xs uppercase tracking-wider font-semibold">
               <tr>
-                <th>Produto</th>
-                <th>Categoria</th>
-                <th>Preço</th>
-                <th>Estoque</th>
-                <th>Status</th>
-                <th>Ações</th>
+                <th className="p-4 px-6">Produto</th>
+                <th className="p-4">Categoria</th>
+                <th className="p-4">Preço</th>
+                <th className="p-4">Estoque</th>
+                <th className="p-4">Status</th>
+                <th className="p-4">Ações</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-zinc-200 text-sm">
               {products.map(p => (
-                <tr key={p.id}>
-                  <td style={{ fontWeight: '500' }}>{p.name}</td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{p.category || '-'}</td>
-                  <td>R$ {Number(p.price).toFixed(2).replace('.', ',')}</td>
-                  <td>{p.stock} un.</td>
-                  <td>
-                    <span style={{ padding: '0.25rem 0.625rem', borderRadius: '1rem', fontSize: '0.75rem', backgroundColor: p.active ? '#dcfce7' : '#fee2e2', color: p.active ? '#166534' : '#991b1b', fontWeight: '500' }}>
+                <tr key={p.id} className={`transition-colors ${!p.active ? 'opacity-50 grayscale bg-zinc-50/50' : 'hover:bg-zinc-50'}`}>
+                  <td className="p-4 px-6 font-medium text-zinc-900">{p.name}</td>
+                  <td className="p-4 text-zinc-500">{p.category || '-'}</td>
+                  <td className="p-4 text-zinc-900">R$ {Number(p.price).toFixed(2).replace('.', ',')}</td>
+                  <td className="p-4 text-zinc-900">{p.stock} un.</td>
+                  <td className="p-4">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      p.active 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-red-100 text-red-700'
+                    }`}>
                       {p.active ? 'Ativo' : 'Inativo'}
                     </span>
                   </td>
-                  <td style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <button onClick={() => navigate(`/admin/products/${p.id}`)} title="Editar produto"
-                      style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.2s', border: 'none', cursor: 'pointer' }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#dbeafe'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = '#eff6ff'}
+                  <td className="p-4 flex gap-2 items-center">
+                    <button 
+                      onClick={() => navigate(`/admin/products/${p.id}`)} 
+                      title="Editar produto"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100:bg-blue-900/50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                     >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                      </svg>
+                      <Edit2 size={14} /> Editar
                     </button>
-                    <button onClick={() => handleDeleteProduct(p.id, p.name)} title="Excluir produto"
-                      style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#fef2f2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.2s', border: 'none', cursor: 'pointer' }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                    <button 
+                      onClick={() => handleDeleteProduct(p.id, p.name)} 
+                      title="Excluir produto"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100:bg-red-900/50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/40"
                     >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18"></path>
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                      </svg>
+                      <Trash2 size={14} /> Excluir
                     </button>
                   </td>
                 </tr>
               ))}
               {products.length === 0 && (
-                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>Nenhum produto cadastrado.</td></tr>
+                <tr>
+                  <td colSpan="6" className="p-10 text-center text-zinc-500">
+                    Nenhum produto cadastrado.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* TAB: PEDIDOS */}
       {activeTab === 'orders' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className="flex flex-col gap-4">
           {orders.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '3rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', color: 'var(--text-secondary)' }}>
+            <div className="text-center p-12 border border-zinc-200 rounded-2xl bg-zinc-50 text-zinc-500">
               Nenhum pedido recebido ainda.
             </div>
           )}
@@ -256,46 +341,51 @@ export default function Dashboard() {
             const isExpanded = expandedOrder === order.id;
 
             return (
-              <div key={order.id} style={{ background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                {/* Cabeçalho do Pedido */}
+              <div key={order.id} className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm transition-all">
                 <div
                   onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
-                  style={{ padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', gap: '1rem' }}
+                  className="p-5 flex flex-wrap sm:flex-nowrap justify-between items-center cursor-pointer gap-4 hover:bg-zinc-50:bg-zinc-800/30 transition-colors"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: '600', fontSize: '0.875rem' }}>#{order.id.slice(0, 8).toUpperCase()}</span>
-                    <span style={{ padding: '0.25rem 0.625rem', borderRadius: '1rem', fontSize: '0.75rem', backgroundColor: statusInfo.bg, color: statusInfo.color, fontWeight: '600' }}>
+                  <div className="flex-1 flex flex-wrap items-center gap-4">
+                    <span className="font-bold text-sm text-zinc-900 px-2 py-1 bg-zinc-100 rounded-lg border border-zinc-200">
+                      #{order.id.slice(0, 8).toUpperCase()}
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}>
                       {statusInfo.label}
                     </span>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                    <span className="text-xs text-zinc-500">
                       {order.customer_name || 'Cliente'} · {order.customer_phone || '—'}
                     </span>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
+                    <span className="text-xs text-zinc-400">
                       {new Date(order.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span style={{ fontWeight: '700', fontSize: '1rem', whiteSpace: 'nowrap' }}>R$ {Number(order.total).toFixed(2).replace('.', ',')}</span>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                      style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}>
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
+                  <div className="flex items-center gap-4">
+                    <span className="font-bold text-zinc-900 whitespace-nowrap">
+                      R$ {Number(order.total).toFixed(2).replace('.', ',')}
+                    </span>
+                    <ChevronDown 
+                      size={20} 
+                      className={`text-zinc-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} 
+                    />
                   </div>
                 </div>
 
-                {/* Detalhes Expandidos */}
                 {isExpanded && (
-                  <div style={{ borderTop: '1px solid var(--border-color)', padding: '1.5rem', display: 'grid', gap: '1.5rem', gridTemplateColumns: '1fr 1fr' }}>
-                    {/* Dados do Cliente */}
+                  <div className="border-t border-zinc-200 p-6 grid grid-cols-1 md:grid-cols-2 gap-8 bg-zinc-50">
+                    
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                        <h4 style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--text-color)' }}>Dados de Entrega</h4>
-                        <button onClick={() => handleExportOrderCSV(order)} title="Baixar relatório deste pedido" style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem', border: '1px solid var(--border-color)', borderRadius: '0.25rem', background: 'transparent', cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                           CSV
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="font-semibold text-sm text-zinc-900 uppercase tracking-wider">Dados de Entrega</h4>
+                        <button 
+                          onClick={() => handleExportOrderExcel(order)} 
+                          title="Baixar planilha deste pedido" 
+                          className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 bg-zinc-50 hover:bg-zinc-100 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-500/30"
+                        >
+                           <Download size={14} /> .xlsx
                         </button>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                      <div className="flex flex-col gap-2.5">
                         <Row label="Nome" value={order.customer_name} />
                         <Row label="Telefone" value={order.customer_phone} />
                         <Row label="Endereço" value={order.customer_address} />
@@ -304,42 +394,45 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    {/* Itens + Status */}
                     <div>
-                      <h4 style={{ fontWeight: '600', fontSize: '0.875rem', marginBottom: '0.75rem', color: 'var(--text-color)' }}>Itens do Pedido</h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                      <h4 className="font-semibold text-sm text-zinc-900 uppercase tracking-wider mb-4">Itens do Pedido</h4>
+                      <div className="flex flex-col gap-2 mb-8 bg-white p-4 rounded-xl border border-zinc-200">
                         {(order.order_items || []).map(item => (
-                          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                            <span style={{ color: 'var(--text-color)' }}>{item.products?.name || 'Produto'} × {item.quantity}</span>
-                            <span style={{ fontWeight: '500' }}>R$ {(Number(item.unit_price) * item.quantity).toFixed(2).replace('.', ',')}</span>
+                          <div key={item.id} className="flex justify-between text-sm items-center">
+                            <span className="text-zinc-600">{item.products?.name || 'Produto'} <span className="text-zinc-400 px-1">×</span> <span className="font-medium text-zinc-900">{item.quantity}</span></span>
+                            <span className="font-semibold text-zinc-900">R$ {(Number(item.unit_price) * item.quantity).toFixed(2).replace('.', ',')}</span>
                           </div>
                         ))}
                       </div>
 
-                      <h4 style={{ fontWeight: '600', fontSize: '0.875rem', marginBottom: '0.625rem' }}>Atualizar Status</h4>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
-                        {Object.entries(STATUS_LABELS).map(([key, val]) => (
-                          <button
-                            key={key}
-                            disabled={order.status === key || statusUpdating === order.id}
-                            onClick={() => handleStatusChange(order.id, key)}
-                            style={{
-                              padding: '0.375rem 0.75rem',
-                              borderRadius: '0.375rem',
-                              fontSize: '0.75rem',
-                              fontWeight: '500',
-                              border: '1px solid',
-                              cursor: order.status === key ? 'default' : 'pointer',
-                              backgroundColor: order.status === key ? val.bg : 'transparent',
-                              color: order.status === key ? val.color : 'var(--text-secondary)',
-                              borderColor: order.status === key ? val.color : 'var(--border-color)',
-                              opacity: statusUpdating === order.id ? 0.6 : 1,
-                              transition: 'all 0.15s',
-                            }}
-                          >
-                            {val.label}
-                          </button>
-                        ))}
+                      <h4 className="font-semibold text-sm text-zinc-900 uppercase tracking-wider mb-4">Atualizar Status</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(STATUS_LABELS).map(([key, val]) => {
+                          const isUpdatingThis = statusUpdating === `${order.id}-${key}`;
+                          const isCurrent = order.status === key;
+                          const anyUpdating = statusUpdating !== null;
+                          return (
+                            <button
+                              key={key}
+                              disabled={isCurrent || anyUpdating}
+                              onClick={() => handleStatusChange(order.id, key)}
+                              className={`
+                                flex items-center justify-center min-w-[100px] px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${val.bg} ${val.text} ${val.border}
+                                ${isCurrent 
+                                  ? `cursor-default ring-1 ring-inset ring-black/10 shadow-sm opacity-100` 
+                                  : `opacity-40 hover:opacity-100 hover:shadow-sm`
+                                }
+                                ${anyUpdating && !isUpdatingThis ? 'opacity-25' : ''}
+                              `}
+                            >
+                              {isUpdatingThis ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                val.label
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -349,16 +442,15 @@ export default function Dashboard() {
           })}
         </div>
       )}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
 function Row({ label, value }) {
   return (
-    <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.8125rem' }}>
-      <span style={{ color: 'var(--text-secondary)', minWidth: '72px' }}>{label}:</span>
-      <span style={{ fontWeight: '500', color: 'var(--text-color)' }}>{value || '—'}</span>
+    <div className="flex gap-2 text-sm items-start">
+      <span className="text-zinc-500 min-w-[80px] font-medium">{label}</span>
+      <span className="font-medium text-zinc-900 break-words flex-1">{value || '—'}</span>
     </div>
   );
 }

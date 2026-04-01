@@ -1,8 +1,8 @@
 const supabaseAdmin = require('../../config/supabase');
 
 const getAllProducts = async (req, res) => {
-  // Usuários anonimos ou customers veem apenas ativos (via RLS ou query)
-  // Como admin usa a service key, ele burla RLS e ve tudo, então precisamos passar filtro caso não seja admin
+  // anon or customers only see active products (via rls or query)
+  // since admin uses service key, it bypasses rls, so we need to filter if not admin
   
   const options = req.query;
   let query = supabaseAdmin.from('products').select('*');
@@ -23,7 +23,7 @@ const getProductById = async (req, res) => {
   res.json(data);
 };
 
-// Admin Routes Only
+// admin routes only
 const createProduct = async (req, res) => {
   const productData = req.body;
   const { data, error } = await supabaseAdmin.from('products').insert([productData]).select();
@@ -42,11 +42,11 @@ const updateProduct = async (req, res) => {
 const deleteProduct = async (req, res) => {
   const { id } = req.params;
   
-  // Tenta deletar fisicamente primeiro
+  // try physical delete first
   const deleteRes = await supabaseAdmin.from('products').delete().eq('id', id);
   
   if (deleteRes.error) {
-    // Se o erro for foreign key violation (23503), inativa ao invés de deletar
+    // if foreign key violation (23503), deactivate instead of deleting
     if (deleteRes.error.code === '23503') {
       const { data, error } = await supabaseAdmin.from('products').update({ active: false }).eq('id', id).select();
       if (error) return res.status(400).json({ error: error.message });

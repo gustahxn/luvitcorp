@@ -2,14 +2,23 @@ const express = require('express');
 const router = express.Router();
 const productController = require('./product.controller');
 const { requireAuth, requireAdmin } = require('../../middlewares/auth');
+const { cacheMiddleware, cache } = require('../../middlewares/cache');
 
-// Public routes (Auth handled by Supabase or query param filtering internally)
-router.get('/', productController.getAllProducts);
-router.get('/:id', productController.getProductById);
+// helper to clear products cache
+const clearProductCache = (req, res, next) => {
+  const keys = cache.keys();
+  const productKeys = keys.filter(k => k.includes('/api/products'));
+  cache.del(productKeys);
+  next();
+};
 
-// Admin-only routes
-router.post('/', requireAuth, requireAdmin, productController.createProduct);
-router.put('/:id', requireAuth, requireAdmin, productController.updateProduct);
-router.delete('/:id', requireAuth, requireAdmin, productController.deleteProduct);
+// public routes
+router.get('/', cacheMiddleware(300), productController.getAllProducts);
+router.get('/:id', cacheMiddleware(300), productController.getProductById);
+
+// admin-only routes (clear cache on change)
+router.post('/', requireAuth, requireAdmin, clearProductCache, productController.createProduct);
+router.put('/:id', requireAuth, requireAdmin, clearProductCache, productController.updateProduct);
+router.delete('/:id', requireAuth, requireAdmin, clearProductCache, productController.deleteProduct);
 
 module.exports = router;
