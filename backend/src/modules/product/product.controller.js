@@ -5,7 +5,7 @@ const getAllProducts = async (req, res) => {
   // since admin uses service key, it bypasses rls, so we need to filter if not admin
   
   const options = req.query;
-  let query = supabaseAdmin.from('products').select('*');
+  let query = supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });
 
   if (options.role !== 'ADMIN') {
      query = query.eq('active', true);

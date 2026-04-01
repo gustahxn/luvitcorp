@@ -34,7 +34,7 @@ export default function Dashboard() {
       if (profile?.role !== 'ADMIN') { navigate('/'); return; }
 
       const [{ data: prods }, ordersRes] = await Promise.all([
-        supabase.from('products').select('*').order('created_at', { ascending: false }),
+        api.get('/products?role=ADMIN').catch(() => ({ data: [] })),
         api.get('/orders').catch(() => ({ data: [] })),
       ]);
 
