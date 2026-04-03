@@ -48,9 +48,24 @@ const deleteProduct = async (req, res) => {
   if (deleteRes.error) {
     // if foreign key violation (23503), deactivate instead of deleting
     if (deleteRes.error.code === '23503') {
-      const { data, error } = await supabaseAdmin.from('products').update({ active: false }).eq('id', id).select();
-      if (error) return res.status(400).json({ error: error.message });
-      return res.json({ message: 'Produto inativado pois não pode ser excluído devido a pedidos existentes.', data });
+      const { data: items } = await supabaseAdmin
+        .from('order_items')
+        .select('order_id, orders(status)')
+        .eq('product_id', id);
+
+      const hasActiveOrders = items && items.some(item => item.orders?.status !== 'CANCELLED');
+
+      if (hasActiveOrders) {
+        const { data, error } = await supabaseAdmin.from('products').update({ active: false }).eq('id', id).select();
+        if (error) return res.status(400).json({ error: error.message });
+        return res.json({ message: 'Produto inativado pois possui pedidos não cancelados.', data });
+      } else {
+        // all orders are cancelled, safe to delete order_items and then product
+        await supabaseAdmin.from('order_items').delete().eq('product_id', id);
+        const { error: finalDelError } = await supabaseAdmin.from('products').delete().eq('id', id);
+        if (finalDelError) return res.status(400).json({ error: finalDelError.message });
+        return res.json({ message: 'Produto excluído com sucesso.' });
+      }
     }
     return res.status(400).json({ error: deleteRes.error.message });
   }

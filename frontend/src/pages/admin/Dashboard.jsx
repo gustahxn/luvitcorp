@@ -19,7 +19,7 @@ export default function Dashboard() {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expandedOrder, setExpandedOrder] = useState(null);
+  const [expandedOrders, setExpandedOrders] = useState(new Set());
   const [statusUpdating, setStatusUpdating] = useState(null);
   const navigate = useNavigate();
 
@@ -56,6 +56,42 @@ export default function Dashboard() {
     } finally {
       setStatusUpdating(null);
     }
+  };
+
+  const handleDeleteOrder = (orderId) => {
+    toast((t) => (
+      <div className="flex flex-col gap-4 min-w-[320px]">
+        <p className="font-semibold text-sm m-0 text-zinc-900">
+          Tem certeza que deseja excluir o pedido #{orderId.slice(0, 8).toUpperCase()}?
+        </p>
+        <div className="flex gap-2 justify-end">
+          <button 
+            onClick={() => toast.dismiss(t.id)}
+            className="px-3 py-1.5 border border-zinc-200 rounded-md bg-transparent text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const promise = api.delete(`/orders/${orderId}`).then(res => {
+                setOrders(prev => prev.filter(o => o.id !== orderId));
+                return res.data.message;
+              });
+              
+              toast.promise(promise, {
+                loading: 'Excluindo pedido...',
+                success: (msg) => msg,
+                error: (e) => e.response?.data?.error || 'Erro ao excluir pedido.'
+              });
+            }}
+            className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm font-medium transition-colors"
+          >
+            Excluir
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity });
   };
 
   const handleDeleteProduct = (id, name) => {
@@ -338,12 +374,20 @@ export default function Dashboard() {
           )}
           {orders.map(order => {
             const statusInfo = STATUS_LABELS[order.status] || STATUS_LABELS.PENDING;
-            const isExpanded = expandedOrder === order.id;
+            const isExpanded = expandedOrders.has(order.id);
 
             return (
               <div key={order.id} className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm transition-all">
                 <div
-                  onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
+                  onClick={() => {
+                    const newExpanded = new Set(expandedOrders);
+                    if (isExpanded) {
+                      newExpanded.delete(order.id);
+                    } else {
+                      newExpanded.add(order.id);
+                    }
+                    setExpandedOrders(newExpanded);
+                  }}
                   className="p-5 flex flex-wrap sm:flex-nowrap justify-between items-center cursor-pointer gap-4 hover:bg-zinc-50:bg-zinc-800/30 transition-colors"
                 >
                   <div className="flex-1 flex flex-wrap items-center gap-4">
@@ -377,13 +421,22 @@ export default function Dashboard() {
                     <div>
                       <div className="flex justify-between items-center mb-4">
                         <h4 className="font-semibold text-sm text-zinc-900 uppercase tracking-wider">Dados de Entrega</h4>
-                        <button 
-                          onClick={() => handleExportOrderExcel(order)} 
-                          title="Baixar planilha deste pedido" 
-                          className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 bg-zinc-50 hover:bg-zinc-100 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-500/30"
-                        >
-                           <Download size={14} /> .xlsx
-                        </button>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleExportOrderExcel(order)} 
+                            title="Baixar planilha deste pedido" 
+                            className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 bg-zinc-50 hover:bg-zinc-100 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-500/30"
+                          >
+                             <Download size={14} /> .xlsx
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteOrder(order.id)} 
+                            title="Excluir pedido" 
+                            className="flex items-center gap-2 px-3 py-1.5 border border-red-200 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/30"
+                          >
+                             <Trash2 size={14} /> Excluir
+                          </button>
+                        </div>
                       </div>
                       <div className="flex flex-col gap-2.5">
                         <Row label="Nome" value={order.customer_name} />

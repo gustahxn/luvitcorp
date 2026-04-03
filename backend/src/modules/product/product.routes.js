@@ -13,8 +13,8 @@ const clearProductCache = (req, res, next) => {
 };
 
 // public routes
-router.get('/', cacheMiddleware(300), productController.getAllProducts);
 router.get('/:id', cacheMiddleware(300), productController.getProductById);
+router.get('/', cacheMiddleware(300), productController.getAllProducts);
 
 // admin-only routes (clear cache on change)
 router.post('/', requireAuth, requireAdmin, clearProductCache, productController.createProduct);

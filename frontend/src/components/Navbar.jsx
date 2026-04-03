@@ -95,6 +95,22 @@ export default function Navbar() {
       width: '100%',
       ...glassStyle
     }}>
+      {isAdminPage && (
+        <div style={{
+          backgroundColor: '#09090b',
+          color: '#fff',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          fontSize: '0.75rem',
+          fontWeight: '600',
+          padding: '0.375rem',
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase'
+        }}>
+          Ambiente de Administração
+        </div>
+      )}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
