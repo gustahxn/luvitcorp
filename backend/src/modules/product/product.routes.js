@@ -9,7 +9,7 @@ const clearProductCache = (req, res, next) => {
   const keys = cache.keys();
   const productKeys = keys.filter(k => k.includes('/api/products'));
   cache.del(productKeys);
-  next();
+  next();``
 };
 
 // public routes
